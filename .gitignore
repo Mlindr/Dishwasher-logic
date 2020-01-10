@@ -5,6 +5,7 @@ incremental_db/
 output_files/
 *.qsf
 *.qws
+*.qpf
 
 #Pinouts for DE2-115
 *.csv
