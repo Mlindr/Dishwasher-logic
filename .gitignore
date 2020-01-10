@@ -1,0 +1,10 @@
+#Quartus generated files
+*.bak
+db/
+incremental_db/
+output_files/
+*.qsf
+*.qws
+
+#Pinouts for DE2-115
+*.csv
