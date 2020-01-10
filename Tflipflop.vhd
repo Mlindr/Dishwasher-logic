@@ -1,18 +1,19 @@
 ------------------------------------------------------------------------------
---date: 29.12.2019
---authors: Mirko Lindroth & Kaisa Möttönen
+--revision: 29.12.2019 created
+--authors: Mirko Lindroth
 --project:tiskikone.vhd
---Description: T-kiikku, tiskikoneen logiikka harjoitustyö
+--Description: Toggle flip flop
 ------------------------------------------------------------------------------
 library IEEE; 
 use IEEE.STD_LOGIC_1164.all;  
 
 entity Tflipflop is 
    port( 
-      t : in STD_LOGIC; 
-      clk : in STD_LOGIC; 
-      reset : in STD_LOGIC; 
-      dout : out STD_LOGIC); 
+      t : in STD_LOGIC;
+      clk : in STD_LOGIC;
+      reset : in STD_LOGIC;
+      dout : out STD_LOGIC
+		); 
 end Tflipflop;  
 
 architecture behavior of Tflipflop is 

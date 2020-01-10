@@ -1,123 +1,81 @@
-------------------------------------------------------------------------------
---date: 28.12.2019
---authors: Mirko Lindroth & Kaisa Möttönen
+---------------------------------------------------------------------------------------
+--revision: 28.12.2019 started project, created file
+--				10.1.2020 made the design more readable and removed logic gate components
+--							 logic gate components were added straight to ouputs
+--authors: Mirko Lindroth
 --project:tiskikone.vhd
---Description: top entity tiskikone, tiskikonelogiikka harjoitustyö
-------------------------------------------------------------------------------
+--Description: Top entity tiskikone, dishwasher logic
+--					-Clock is inverted every 5 minutes
+--					-The logic has states wash and rinse(0 and 1)
+--					-Water filling valve and draining pump should start on the rising 
+--					 edge of the clock and end by water level sensors
+--					-In case of errors, valve and pump shouldn't last more than 5 min
+---------------------------------------------------------------------------------------
 library ieee;
 use ieee.std_logic_1164.all;
 
 entity tiskikone is
 	port(
-			vpAnturiEmpty	:in std_logic	:='0';
-			vpAnturiFull	:in std_logic	:='0';
-			clk				:in std_logic;
-			vedenpoisto		:out std_logic;
-			vedenotto		:out std_logic;
-			tilaLed			:out std_logic;
-			kelloLed			:out std_logic;
-			emptyLed			:out std_logic;
-			fullLed			:out std_logic;
-			pesuaine			:out std_logic);
+		vpAnturiEmpty	:in std_logic	:='0';--water level sensor, 1 when empty
+		vpAnturiFull	:in std_logic	:='0';--water level sensor, 1 when full
+		clk				:in std_logic;			--clock input
+		vedenpoisto		:out std_logic;		--pump control, drains water, 1 to start
+		vedenotto		:out std_logic;		--valve control, fills water, 1 to start
+		tilaLed			:out std_logic;		--state led
+		kelloLed			:out std_logic;		--clock led
+		emptyLed			:out std_logic;		--water level sensor empty led
+		fullLed			:out std_logic;		--water level sensor full led
+		pesuaine			:out std_logic);		--detergent hatch control, 1 when open
 end tiskikone;
 
 architecture tkToiminta of tiskikone is
 
 --Signals
-constant one	:std_logic	:='1';
-constant zero	:std_logic	:='0';
+signal one		:std_logic	:='1';
+signal zero		:std_logic	:='0';
 signal clk_sig	:std_logic	:='1';
-signal V			:std_logic	:='0';
-signal W			:std_logic	:='0';
-signal Z			:std_logic	:='0';
-signal inv1Out	:std_logic	:='0';
-signal nor1Out	:std_logic	:='0';
 signal tila		:std_logic	:='0';
-signal invTila	:std_logic	:='0';
 signal empty	:std_logic	:='0';
 signal full		:std_logic	:='0';
 
 --components instantiations
-component inverter1In
-		port(
-			A	:in std_logic;
-			B	:out std_logic);
-end component;
-
-component and2In
-	port(
-			A		:in std_logic;
-			B		:in std_logic;
-			C		:out std_logic);
-end component;
-
-component nand2In
-		port(
-			A	:in std_logic;
-			B	:in std_logic;
-			C	:out std_logic);
-end component;
-
-component nor2In
-	port(
-			A	:in std_logic;
-			B	:in std_logic;
-			C	:out std_logic);
-end component;
-
 component Tflipflop
    port( 
-      t : in STD_LOGIC; 
-      clk : in STD_LOGIC; 
+      t 		: in STD_LOGIC; 
+      clk 	: in STD_LOGIC;
       reset : in STD_LOGIC; 
-      dout : out STD_LOGIC);
-end component;
-
-component and3In
-	port(
-			A	:in std_logic;
-			B	:in std_logic;
-			C	:in std_logic;
-			D	:out std_logic);
+      dout 	: out STD_LOGIC
+		);
 end component;
 
 component freqDivider
     Port (
         clk_in : in  STD_LOGIC;
-        clk_out: out STD_LOGIC);
+        clk_out: out STD_LOGIC
+		  );
 end component;
 
 begin
-	--oskillaattorin kellon jakaminen järjestelmälle sopivaksi
-	kellojakaja:freqDivider
-		port map(clk,clk_sig);
-	--painikkeiden invertointi oikein päin
-	sw1:inverter1In
-		port map(vpAnturiEmpty,empty);
-	sw2:inverter1In
-		port map(vpAnturiFull,full);
-	--vedenottoventtiilin ohjauksen reititys
-	inv1In1:inverter1In
-		port map(full,inv1Out);
-	and2In1:and2In
-		port map(inv1Out,clk_sig,W);
-	--tyhjennyspumpun ohjauksen reititys
-	nand2In1:nand2In
-		port map(empty,clk_sig,V);
-	--pesuaineluukun ohjauksen reititys
-	nor2In1:nor2In
-		port map(empty,full,nor1Out);
-	Tflipflop1:Tflipflop
-		port map(one,clk_sig,zero,tila);
-	inv1In2:inverter1In
-		port map(tila,invTila);
-	and3In1:and3In
-		port map(nor1Out,clk_sig,invTila,Z);
+	--Dividing the clock to the needed frequency using frequency divider
+	sys_freq:freqDivider
+		port map(clk_in=>clk,clk_out=>clk_sig);
+	
+	--The DE2-115 board debounced buttons are inverted, so they are inverted back to correspond the design
+	empty<=not vpAnturiEmpty;
+	full<=not vpAnturiFull;
 		
-	--ledien liittäminen signaaleihin
-	vedenpoisto<=V;
-	vedenotto<=W;
-	pesuaine<=Z;
+	--valve control
+	vedenotto<=(not full) and clk_sig;
+		
+	--drain pump control
+	vedenpoisto<=clk_sig nand empty;
+		
+	--detergent hatch control
+	Tflipflop1:Tflipflop
+		port map(t=>one,clk=>clk_sig,reset=>zero,dout=>tila);
+	pesuaine<=((full nor empty) and clk_sig and (not tila));
+	
+	--attaching signals to outpu leds
 	tilaLed<=tila;
 	kelloLed<=clk_sig;
 	emptyLed<=empty;
